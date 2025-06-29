@@ -1,0 +1,21 @@
+{
+  "name": "productivity-chatbot",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test-api.js",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@google/genai": "^1.7.0",
+    "axios": "^1.10.0",
+    "dotenv": "^17.0.0",
+    "express": "^5.1.0",
+    "groq-sdk": "^0.26.0"
+  }
+}

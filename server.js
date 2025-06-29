@@ -1,0 +1,73 @@
+import express from 'express';
+import dotenv from 'dotenv';
+import { Groq } from 'groq-sdk';
+import path from 'path';
+import { fileURLToPath } from 'url';
+dotenv.config();
+console.log("Loaded GROQ_API_KEY:", process.env.GROQ_API_KEY);
+
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use(express.json());
+app.use(express.static(__dirname));
+
+// System prompt to reduce hallucination and define the chatbot's role
+const SYSTEM_PROMPT = `You are a helpful productivity coach and assistant. Your role is to:
+
+1. Provide practical, actionable advice for improving productivity
+2. Help users with time management, goal setting, and task organization
+3. Suggest specific techniques and tools when appropriate
+4. Ask clarifying questions when needed to provide better assistance
+5. Stay focused on productivity-related topics
+6. Be honest about limitations and don't make up information
+7. If you're unsure about something, say so rather than guessing
+
+Always respond in a helpful, encouraging tone while being realistic and practical.`;
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+app.post('/chat', async (req, res) => {
+    const userMessage = req.body.message;
+    
+    if (!userMessage || userMessage.trim() === '') {
+        return res.status(400).json({ error: "Message cannot be empty" });
+    }
+
+    try {
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: userMessage }
+            ],
+            model: "llama3-70b-8192",
+            temperature: 0.7,
+            max_tokens: 1000,
+            top_p: 1,
+            stream: false 
+        });
+
+        // Extract the reply
+        const reply = chatCompletion.choices?.[0]?.message?.content || "I couldn't generate a response.";
+        res.json({ reply: reply.trim() });
+
+    } catch (err) {
+        console.error("Groq API error full details:", JSON.stringify(err, null, 2));
+        res.status(500).json({ error: "Groq API failed. Check your terminal for details." });
+    }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', message: 'Productivity chatbot is running' });
+});
+
+app.listen(PORT, () => {
+    console.log(`Productivity chatbot running at http://localhost:${PORT}`);
+    console.log(`Health check available at http://localhost:${PORT}/health`);
+});
+

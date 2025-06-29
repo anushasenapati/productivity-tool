@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productivity Planner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #181a20;
+            --bg-chat: #23262f;
+            --primary: #4f8cff;
+            --primary-light: #a3c9ff;
+            --text-main: #f5f6fa;
+            --text-secondary: #b2b8c6;
+            --bubble-user: #4f8cff;
+            --bubble-bot: #23262f;
+            --bubble-radius: 18px;
+        }
+        html, body {
+            height: 100%;
+        }
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+        }
+        .container {
+            width: 100vw;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .logo {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-top: 60px;
+            margin-bottom: 10px;
+            color: var(--text-main);
+            text-align: center;
+        }
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .chat-area {
+            background: var(--bg-chat);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 600px;
+            min-height: 400px;
+            margin-bottom: 0;
+            padding: 32px 24px 24px 24px;
+            box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            overflow-y: auto;
+            flex: 1 1 auto;
+        }
+        .message {
+            display: flex;
+            margin-bottom: 0;
+        }
+        .message.user {
+            justify-content: flex-end;
+        }
+        .message.bot {
+            justify-content: flex-start;
+        }
+        .bubble {
+            max-width: 75%;
+            padding: 14px 20px;
+            border-radius: var(--bubble-radius);
+            font-size: 1.08rem;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        .message.user .bubble {
+            background: var(--bubble-user);
+            color: #fff;
+            border-bottom-right-radius: 6px;
+        }
+        .message.bot .bubble {
+            background: var(--bubble-bot);
+            color: var(--text-main);
+            border-bottom-left-radius: 6px;
+            border: 1px solid #23262f;
+        }
+        .input-bar {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            align-items: center;
+            background: var(--bg-chat);
+            border-radius: 24px;
+            margin: 32px 0 32px 0;
+            box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);
+            padding: 8px 12px 8px 20px;
+        }
+        #user-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            padding: 12px 0;
+            outline: none;
+        }
+        #user-input::placeholder {
+            color: var(--text-secondary);
+        }
+        #send-btn {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 18px;
+            padding: 10px 22px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-left: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #send-btn:disabled {
+            background: var(--primary-light);
+            cursor: not-allowed;
+        }
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 10px;
+        }
+        .loading.show {
+            display: flex;
+        }
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #23262f;
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #2d1a1a;
+            color: #ff6b6b;
+            padding: 10px 16px;
+            border-radius: 12px;
+            margin: 10px 0;
+            border-left: 4px solid #ff6b6b;
+            font-size: 1rem;
+        }
+        @media (max-width: 700px) {
+            .chat-area, .input-bar {
+                max-width: 98vw;
+            }
+            .logo {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">Productivity Planner</div>
+        <div class="subtitle">Ask anything about productivity, planning, or time management.</div>
+        <div class="chat-area" id="chat-box">
+            <div class="message bot">
+                <div class="bubble"> Hi! I'm your Productivity Planner. How can I help you today?</div>
+            </div>
+        </div>
+        <form class="input-bar" onsubmit="event.preventDefault(); sendMessage();">
+            <input type="text" id="user-input" placeholder="Ask anything about productivity..." autocomplete="off" />
+            <button id="send-btn" type="submit">Send</button>
+        </form>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <span>Thinking...</span>
+        </div>
+    </div>
+    <script>
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatBox = document.getElementById('chat-box');
+        const loading = document.getElementById('loading');
+
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            userInput.value = '';
+            sendBtn.disabled = true;
+            loading.classList.add('show');
+
+            addMessage(message, 'user');
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    addMessage(data.reply, 'bot');
+                } else {
+                    addErrorMessage(data.error || 'An error occurred while processing your request.');
+                }
+            } catch (error) {
+                addErrorMessage('Network error. Please check your connection and try again.');
+            } finally {
+                sendBtn.disabled = false;
+                loading.classList.remove('show');
+                userInput.focus();
+            }
+        }
+
+        function addMessage(content, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = content;
+            messageDiv.appendChild(bubble);
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addErrorMessage(error) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = ` ${error}`;
+            chatBox.appendChild(errorDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
