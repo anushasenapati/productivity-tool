@@ -3,9 +3,14 @@ import dotenv from 'dotenv';
 import { Groq } from 'groq-sdk';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createClient } from '@supabase/supabase-js';
+
 dotenv.config();
 console.log("Loaded GROQ_API_KEY:", process.env.GROQ_API_KEY);
 
+const SUPABASE_URL = 'https://qrtzijoywwflzmvreskv.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFydHppam95d3dmbHptdnJlc2t2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyMTY4MTQsImV4cCI6MjA2Njc5MjgxNH0.9IEeF32R9u4RaG2R8AWgUM-vVJdSqR4ORX2J8Zmqlxw';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -61,13 +66,40 @@ app.post('/chat', async (req, res) => {
     }
 });
 
+// --- Supabase Endpoints ---
+app.post('/api/tasks', async (req, res) => {
+    const { content } = req.body;
+    if (!content || !content.trim()) {
+        return res.status(400).json({ error: 'Task description cannot be empty.' });
+    }
+    const { data, error } = await supabase.from('tasks').insert([{ description: content }]);
+    if (error) {
+        console.error('Supabase tasks insert error:', error);
+        return res.status(500).json({ error: 'Failed to save task.' });
+    }
+    res.json({ success: true, data });
+});
+
+app.post('/api/milestones', async (req, res) => {
+    const { content } = req.body;
+    if (!content || !content.trim()) {
+        return res.status(400).json({ error: 'Milestone description cannot be empty.' });
+    }
+    const { data, error } = await supabase.from('milestones').insert([{ description: content }]);
+    if (error) {
+        console.error('Supabase milestones insert error:', error);
+        return res.status(500).json({ error: 'Failed to save milestone.' });
+    }
+    res.json({ success: true, data });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'Productivity chatbot is running' });
 });
 
 app.listen(PORT, () => {
-    console.log(`Productivity chatbot running at http://localhost:${PORT}`);
-    console.log(`Health check available at http://localhost:${PORT}/health`);
+    console.log(`🚀 Productivity chatbot running at http://localhost:${PORT}`);
+    console.log(`📊 Health check available at http://localhost:${PORT}/health`);
 });
 

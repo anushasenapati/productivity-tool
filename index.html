@@ -16,6 +16,8 @@
             --bubble-user: #4f8cff;
             --bubble-bot: #23262f;
             --bubble-radius: 18px;
+            --button-bg: #23262f;
+            --button-hover: #2e3240;
         }
         html, body {
             height: 100%;
@@ -52,6 +54,35 @@
             font-size: 1.1rem;
             margin-bottom: 30px;
             text-align: center;
+        }
+        .main-content {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            max-width: 900px;
+            min-height: 500px;
+        }
+        .side-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin-right: 24px;
+            margin-top: 10px;
+        }
+        .side-btn {
+            background: var(--button-bg);
+            color: var(--text-main);
+            border: none;
+            border-radius: 16px;
+            padding: 16px 28px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px 0 rgba(0,0,0,0.10);
+        }
+        .side-btn:hover {
+            background: var(--button-hover);
         }
         .chat-area {
             background: var(--bg-chat);
@@ -168,12 +199,76 @@
             border-left: 4px solid #ff6b6b;
             font-size: 1rem;
         }
-        @media (max-width: 700px) {
-            .chat-area, .input-bar {
-                max-width: 98vw;
+        /* Modal styles */
+        .modal-bg {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0; right: 0; bottom: 0;
+            background: rgba(24,26,32,0.85);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-bg.show {
+            display: flex;
+        }
+        .modal {
+            background: var(--bg-chat);
+            color: var(--text-main);
+            border-radius: 18px;
+            padding: 32px 28px 24px 28px;
+            min-width: 320px;
+            box-shadow: 0 4px 32px 0 rgba(0,0,0,0.18);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            align-items: stretch;
+        }
+        .modal label {
+            font-size: 1.1rem;
+            margin-bottom: 6px;
+        }
+        .modal input[type="text"] {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: none;
+            background: #23262f;
+            color: var(--text-main);
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        .modal .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .modal button {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 18px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .modal button.cancel {
+            background: #444857;
+        }
+        .modal button:disabled {
+            background: var(--primary-light);
+            cursor: not-allowed;
+        }
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+                align-items: stretch;
             }
-            .logo {
-                font-size: 2rem;
+            .side-buttons {
+                flex-direction: row;
+                margin-right: 0;
+                margin-bottom: 18px;
             }
         }
     </style>
@@ -182,9 +277,15 @@
     <div class="container">
         <div class="logo">Productivity Planner</div>
         <div class="subtitle">Ask anything about productivity, planning, or time management.</div>
-        <div class="chat-area" id="chat-box">
-            <div class="message bot">
-                <div class="bubble"> Hi! I'm your Productivity Planner. How can I help you today?</div>
+        <div class="main-content">
+            <div class="side-buttons">
+                <button class="side-btn" id="tasks-btn">Tasks</button>
+                <button class="side-btn" id="milestones-btn">Milestones</button>
+            </div>
+            <div class="chat-area" id="chat-box">
+                <div class="message bot">
+                    <div class="bubble"> Hi! I'm your Productivity Planner. How can I help you today?</div>
+                </div>
             </div>
         </div>
         <form class="input-bar" onsubmit="event.preventDefault(); sendMessage();">
@@ -195,12 +296,31 @@
             <div class="spinner"></div>
             <span>Thinking...</span>
         </div>
+        <!-- Modal for Tasks/Milestones -->
+        <div class="modal-bg" id="modal-bg">
+            <div class="modal" id="modal">
+                <label id="modal-label"></label>
+                <input type="text" id="modal-input" placeholder="Enter here..." />
+                <div class="modal-actions">
+                    <button type="button" class="cancel" onclick="closeModal()">Cancel</button>
+                    <button type="button" id="modal-submit">Save</button>
+                </div>
+            </div>
+        </div>
     </div>
     <script>
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const chatBox = document.getElementById('chat-box');
         const loading = document.getElementById('loading');
+        const tasksBtn = document.getElementById('tasks-btn');
+        const milestonesBtn = document.getElementById('milestones-btn');
+        const modalBg = document.getElementById('modal-bg');
+        const modal = document.getElementById('modal');
+        const modalLabel = document.getElementById('modal-label');
+        const modalInput = document.getElementById('modal-input');
+        const modalSubmit = document.getElementById('modal-submit');
+        let modalType = null;
 
         userInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -209,37 +329,78 @@
             }
         });
 
-        async function sendMessage() {
-            const message = userInput.value.trim();
-            if (!message) return;
+        tasksBtn.onclick = () => openModal('task');
+        milestonesBtn.onclick = () => openModal('milestone');
 
-            userInput.value = '';
-            sendBtn.disabled = true;
-            loading.classList.add('show');
-
-            addMessage(message, 'user');
-
+        function openModal(type) {
+            modalType = type;
+            modalLabel.textContent = type === 'task' ? 'Add a new Task' : 'Add a new Milestone';
+            modalInput.value = '';
+            modalInput.placeholder = type === 'task' ? 'Describe your task...' : 'Describe your milestone...';
+            modalBg.classList.add('show');
+            modalInput.focus();
+        }
+        function closeModal() {
+            modalBg.classList.remove('show');
+        }
+        modalSubmit.onclick = async function() {
+            const value = modalInput.value.trim();
+            if (!value) return;
+            modalSubmit.disabled = true;
             try {
-                const response = await fetch('/chat', {
+                const endpoint = modalType === 'task' ? '/api/tasks' : '/api/milestones';
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ content: value })
                 });
                 const data = await response.json();
                 if (response.ok) {
+                    closeModal();
+                    alert((modalType === 'task' ? 'Task' : 'Milestone') + ' saved!');
+                } else {
+                    alert(data.error || 'Failed to save.');
+                }
+            } catch (e) {
+                alert('Network error.');
+            } finally {
+                modalSubmit.disabled = false;
+            }
+        };
+        modalInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                modalSubmit.click();
+            }
+        });
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            userInput.value = '';
+            sendBtn.disabled = true;
+            loading.classList.add('show');
+            addMessage(message, 'user');
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.reply) {
                     addMessage(data.reply, 'bot');
                 } else {
                     addErrorMessage(data.error || 'An error occurred while processing your request.');
                 }
-            } catch (error) {
+            })
+            .catch(() => {
                 addErrorMessage('Network error. Please check your connection and try again.');
-            } finally {
+            })
+            .finally(() => {
                 sendBtn.disabled = false;
                 loading.classList.remove('show');
                 userInput.focus();
-            }
+            });
         }
-
         function addMessage(content, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
@@ -250,7 +411,6 @@
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
-
         function addErrorMessage(error) {
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error';
